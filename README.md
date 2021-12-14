@@ -1,2 +1,2 @@
-# cronjob for qnap
+# Go语言开发的定时任务集中调度和管理系统, 用于替代Linux-crontab
 ## 适用于QNAP的定时任务集中调度和管理系统
