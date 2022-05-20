@@ -1,7 +1,7 @@
 ## 介绍
 Go语言开发的定时任务集中调度和管理系统, 用于替代Linux-crontab
 
-* 开源链接：https://github.com/LinkLeong/go-aliyundrive-webdav
+* 开源链接：https://github.com/ouqiang/gocron
 
 ## 如何使用
 在QNAP系统，通过App Center手动安装 ***.qpkg*** 后辍程序。
