@@ -4,6 +4,13 @@ Go语言开发的定时任务集中调度和管理系统, 用于替代Linux-cron
 * 开源链接：https://github.com/ouqiang/gocron
 * 感谢原项目[[ouqiang/gocron](https://github.com/ouqiang/gocron)]的支持。 
 
+### 版本介绍
+> gocron_1.5.5_x86_64_Sqlite3.qpkg  
+首次安装可以用此版本，即装即用，使用Sqlite3数据库，默认用户名/密码：admin 123456
+
+> gocron_1.5.5_x86_64_.MySQL.qpkg
+之前使用过并创建MySQL数据库，则为升级安装，保留MySql数据。
+如果没有安装过，此版本则是全新安装，手动创建MySql 或 Sqlite3数据库
 
 ## Update: v1.5.5
 * 支持web多点主从高可用
