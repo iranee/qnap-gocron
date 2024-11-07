@@ -2,7 +2,16 @@
 Go语言开发的定时任务集中调度和管理系统, 用于替代Linux-crontab
 
 * 开源链接：https://github.com/ouqiang/gocron
+* 感谢原项目[[ouqiang/gocron](https://github.com/ouqiang/gocron)]的支持。 
 
+
+## Update: v1.5.5
+* 支持web多点主从高可用
+* 支持Sqlite3数据库
+* 任务依赖支持DAG工作流
+* 支持shell任务调度策略
+* 支持最近一次失败任务继续运行
+* 即装即用，默认用户名/密码：admin 123456
 
 ## 功能特性
 * Web界面管理定时任务
@@ -20,8 +29,8 @@ Go语言开发的定时任务集中调度和管理系统, 用于替代Linux-cron
 * 任务执行结果通知, 支持邮件、Slack、Webhook
 
 ### 环境要求
->  MySQL
->  
+* >  Sqlite3 【默认】
+* >  MySQL
 ### 截图
 ![流程图](https://raw.githubusercontent.com/ouqiang/gocron/master/assets/screenshot/scheduler.png)
 ![任务](https://raw.githubusercontent.com/ouqiang/gocron/master/assets/screenshot/task.png)
@@ -39,5 +48,6 @@ Go语言开发的定时任务集中调度和管理系统, 用于替代Linux-cron
 
   
 ## 安装准备
-- 安装前去威联通的管理页面打开MariaDB5服务(原MySQL服务)，位置在：控制台→应用程序→MariaDB
+- 默认使用Sqlite3数据库，默认用户名密码：admin 123456
+- 如果要用MySQL数据库，安装前去威联通的管理页面打开MariaDB5服务(原MySQL服务)，位置在：控制台→应用程序→MariaDB
 - 在MariaDB里设置用户密码，配置页面需要填入。
