@@ -1,0 +1,16 @@
+#!/bin/sh
+
+while true ; do
+
+    if [[ -z $(pidof "gocron") ]] ; then
+	echo "gocron try running"
+    ./gocron web >&1 &
+    fi
+	
+    if [[ -z $(pidof "gocron-node") ]] ; then
+	echo "gocron_node try running"
+    ./gocron-node -allow-root >&1 &
+	fi
+
+  sleep 30
+done
