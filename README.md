@@ -1,4 +1,6 @@
-## 介绍
+## QNAP gocron 定时任务管理系统  
+![Release](https://img.shields.io/github/v/release/iranee/qnap-gocron?label=Releases&color=2)
+
 Go语言开发的定时任务集中调度和管理系统, 用于替代Linux-crontab
 
 * 开源链接：https://github.com/ouqiang/gocron
