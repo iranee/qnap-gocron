@@ -5,7 +5,7 @@
 Go语言开发的定时任务集中调度和管理系统, 用于替代Linux-crontab
 
 * 开源链接：https://github.com/ouqiang/gocron
-* 感谢原项目[[ouqiang/gocron](https://github.com/ouqiang/gocron)]的支持。 
+* 感谢原项目[[wixb50/gocron/](https://github.com/wixb50/gocron/)]的支持。 
 
 ### 版本介绍
 > gocron_1.5.5_x86_64_Sqlite3.qpkg  
