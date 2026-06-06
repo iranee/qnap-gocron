@@ -1,0 +1,370 @@
+name: Build QNAP GoCron QPKG
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'GoCron 版本号（留空则自动获取最新版）'
+        required: false
+        default: ''
+      force_build:
+        description: '强制构建（即使版本已存在）'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            echo "使用手动指定版本: $VERSION"
+          else
+            echo "获取 GoCron 最新版本..."
+            VERSION=$(curl -s "https://api.github.com/repos/gocronx-team/gocron/releases/latest" \
+              | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//' || echo "")
+            if [ -z "$VERSION" ]; then
+              echo "无法获取最新版本号"
+              exit 1
+            fi
+            echo "自动获取到版本: $VERSION"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if version exists
+        id: check
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          FORCE="${{ github.event.inputs.force_build }}"
+
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            if [ "$FORCE" = "true" ]; then
+              echo "版本 v$VERSION 已存在，但强制构建已启用"
+              echo "exists=false" >> $GITHUB_OUTPUT
+              git tag -d "v$VERSION" 2>/dev/null || true
+              git push origin ":refs/tags/v$VERSION" 2>/dev/null || true
+            else
+              echo "版本 v$VERSION 已存在，跳过构建"
+              echo "exists=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "版本 v$VERSION 是新版本，开始构建"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fetch Release Notes
+        id: notes
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          RAW_BODY=$(curl -s "https://api.github.com/repos/gocronx-team/gocron/releases/latest" \
+            | python3 -c "import sys,json; data=json.load(sys.stdin); print(data.get('body',''))" 2>/dev/null || echo "")
+
+          if [ -z "$RAW_BODY" ] || [ "$RAW_BODY" = "null" ]; then
+            RAW_BODY="更新至 v${VERSION}"
+          fi
+
+          # 过滤 GoReleaser 署名行
+          CLEAN_BODY=$(echo "$RAW_BODY" | grep -v -i "Released by \[GoReleaser\]" | grep -v -i "released by goreleaser")
+
+          {
+            echo "notes<<EOF"
+            echo "$CLEAN_BODY"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          echo "更新日志已获取"
+
+      - name: Download GoCron Binaries
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BASE_URL="https://github.com/gocronx-team/gocron/releases/download/v${VERSION}"
+
+          # gocron 主程序（调度服务）
+          declare -A SERVER_TAR=(
+            ["x86_64"]="gocron-${VERSION}-linux-amd64.tar.gz"
+            ["arm_64"]="gocron-${VERSION}-linux-arm64.tar.gz"
+          )
+
+          # gocron-node（执行节点）
+          declare -A NODE_TAR=(
+            ["x86_64"]="gocron-node-linux-amd64.tar.gz"
+            ["arm_64"]="gocron-node-linux-arm64.tar.gz"
+          )
+
+          mkdir -p /tmp/gocron-bins
+
+          for arch in x86_64 arm_64; do
+            destdir="/tmp/gocron-bins/${arch}"
+            mkdir -p "$destdir"
+
+            # 下载并解压 gocron 主程序
+            server_tar="${SERVER_TAR[$arch]}"
+            echo "下载 ${arch} gocron 主程序: $server_tar"
+            wget -q "${BASE_URL}/${server_tar}" -O /tmp/gocron-server-${arch}.tar.gz || { echo "下载失败: $server_tar"; exit 1; }
+            tar -xzf /tmp/gocron-server-${arch}.tar.gz -C "$destdir"
+
+            # 下载并解压 gocron-node
+            node_tar="${NODE_TAR[$arch]}"
+            echo "下载 ${arch} gocron-node: $node_tar"
+            wget -q "${BASE_URL}/${node_tar}" -O /tmp/gocron-node-${arch}.tar.gz || { echo "下载失败: $node_tar"; exit 1; }
+            tar -xzf /tmp/gocron-node-${arch}.tar.gz -C "$destdir"
+
+            # 只保留 gocron 和 gocron-node，删除其余文件
+            find "$destdir" -maxdepth 1 -type f \
+              ! -name "gocron" ! -name "gocron-node" -delete
+            find "$destdir" -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} + 2>/dev/null || true
+
+            if [ ! -f "$destdir/gocron" ]; then
+              echo "错误：${arch} 目录下未找到 gocron 二进制"
+              ls -la "$destdir/"
+              exit 1
+            fi
+            if [ ! -f "$destdir/gocron-node" ]; then
+              echo "错误：${arch} 目录下未找到 gocron-node 二进制"
+              ls -la "$destdir/"
+              exit 1
+            fi
+
+            chmod +x "$destdir/gocron" "$destdir/gocron-node"
+            echo "✅ ${arch}: $(ls $destdir/)"
+          done
+
+          echo "所有二进制准备完毕"
+
+      - name: Install Dependencies
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            git-core ca-certificates wget python-is-python3 make gcc rsync
+
+      - name: Install QDK
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          git clone https://github.com/qnap-dev/QDK.git /tmp/QDK
+          cd /tmp/QDK
+          sudo ./InstallToUbuntu.sh install
+          echo "/usr/share/QDK/bin" >> $GITHUB_PATH
+
+      - name: Prepare Build Directory
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          BUILD_DIR="/tmp/qnap-gocron-build"
+          mkdir -p "$BUILD_DIR"
+
+          # 复制仓库所有文件（排除 .git / .github）
+          rsync -a --exclude='.git' --exclude='.github' \
+            "$GITHUB_WORKSPACE/" "$BUILD_DIR/"
+
+          # 将各架构二进制放入对应目录，供 qbuild 打包
+          for arch in x86_64 arm_64; do
+            arch_dir="$BUILD_DIR/${arch}"
+            mkdir -p "$arch_dir"
+
+            cp "/tmp/gocron-bins/${arch}/gocron" "$arch_dir/"
+            cp "/tmp/gocron-bins/${arch}/gocron-node" "$arch_dir/"
+            echo "✅ ${arch}/gocron 已放入"
+            echo "   ${arch}/gocron-node 已放入"
+          done
+
+          echo "构建目录结构:"
+          ls -la "$BUILD_DIR/"
+
+      - name: Update Version in qpkg.cfg
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUILD_DIR="/tmp/qnap-gocron-build"
+
+          sed -i "s#^QPKG_VER=.*#QPKG_VER=\"${VERSION}\"#" "$BUILD_DIR/qpkg.cfg"
+
+          echo "qpkg.cfg 版本已更新:"
+          grep "^QPKG_VER=" "$BUILD_DIR/qpkg.cfg"
+
+      - name: Build QPKG
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          cd /tmp/qnap-gocron-build
+          qbuild
+
+          if [ -z "$(ls -A build/*.qpkg 2>/dev/null)" ]; then
+            echo "QPKG 构建失败，build 目录内容:"
+            ls -la build/ 2>/dev/null || echo "(目录不存在)"
+            exit 1
+          fi
+
+          echo "QPKG 构建成功:"
+          ls -lh build/
+
+      - name: Prepare Release Files
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          RELEASE_DIR="$GITHUB_WORKSPACE/qpkg-release"
+          mkdir -p "$RELEASE_DIR"
+
+          cd /tmp/qnap-gocron-build/build
+
+          for file in *.qpkg; do
+            if   [[ "$file" == *"x86_64"* ]]; then
+              NEW_NAME="qnap-gocron_${VERSION}_x86_64.qpkg"
+            elif [[ "$file" == *"arm_64"* ]] || [[ "$file" == *"aarch64"* ]] || [[ "$file" == *"arm64"* ]]; then
+              NEW_NAME="qnap-gocron_${VERSION}_arm_64.qpkg"
+            else
+              echo "未知架构文件，跳过: $file"
+              continue
+            fi
+
+            cp "$file" "$RELEASE_DIR/$NEW_NAME"
+            echo "已重命名: $NEW_NAME"
+          done
+
+          # 生成 md5 校验文件
+          cd "$RELEASE_DIR"
+          for file in *.qpkg; do
+            md5sum "$file" > "${file}.md5"
+          done
+
+          echo "发布文件列表:"
+          ls -lh "$RELEASE_DIR/"
+
+      - name: Update Repository qpkg.cfg & Commit
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          sed -i "s#^QPKG_VER=.*#QPKG_VER=\"${VERSION}\"#" qpkg.cfg
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add qpkg.cfg
+
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: bump gocron version to v${VERSION}"
+            git push origin HEAD:main
+          else
+            echo "qpkg.cfg 无变化，跳过提交"
+          fi
+
+      - name: Create Tag
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git tag -a "v${VERSION}" -m "Release qnap-gocron v${VERSION}"
+          git push origin "v${VERSION}"
+
+      - name: Delete Existing Release
+        if: steps.check.outputs.exists == 'false' && github.event.inputs.force_build == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const version = '${{ steps.version.outputs.version }}';
+            const tagName = `v${version}`;
+            try {
+              const release = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tagName
+              });
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: release.data.id
+              });
+              console.log(`已删除旧 Release: ${tagName}`);
+            } catch (e) {
+              console.log(`Release ${tagName} 不存在或已删除`);
+            }
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: "v${{ steps.version.outputs.version }}"
+          files: qpkg-release/*
+          body: |
+            ## 更新内容
+
+            ${{ steps.notes.outputs.notes }}
+
+            ## 安装方法
+
+            1. 下载对应架构的 `.qpkg` 文件
+            2. 登录 QNAP 管理界面 → App Center
+            3. 点击右上角齿轮图标 → **手动安装**
+            4. 选择下载的 `.qpkg` 文件进行安装
+
+            ## 支持架构
+
+            | 文件 | 适用设备 |
+            |------|--------|
+            | `*_x86_64.qpkg` | Intel/AMD 64位 |
+            | `*_arm_64.qpkg` | ARM 64位（aarch64） |
+
+            ## 构建信息
+
+            - GoCron 上游版本: v${{ steps.version.outputs.version }}
+            - Commit: ${{ github.sha }}
+            - GoCron 上游仓库: https://github.com/gocronx-team/gocron
+          draft: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifacts
+        if: steps.check.outputs.exists == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qnap-gocron-v${{ steps.version.outputs.version }}
+          path: qpkg-release/*
+          retention-days: 30
+
+      - name: Build Summary
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          FORCE="${{ github.event.inputs.force_build }}"
+
+          if [ "$FORCE" = "true" ]; then
+            echo "### 🔄 qnap-gocron v${VERSION} 强制重新构建成功" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ qnap-gocron v${VERSION} 构建成功" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**构建文件:**" >> $GITHUB_STEP_SUMMARY
+          for file in $GITHUB_WORKSPACE/qpkg-release/*.qpkg; do
+            size=$(du -h "$file" | cut -f1)
+            echo "- \`$(basename $file)\` (${size})" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release（预发布）:** https://github.com/${{ github.repository }}/releases/tag/v${VERSION}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Skip Summary
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "### ⏭️ 版本 v${VERSION} 已存在，跳过构建" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "💡 如需重新构建，请勾选「强制构建」选项" >> $GITHUB_STEP_SUMMARY
