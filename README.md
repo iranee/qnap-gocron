@@ -24,9 +24,10 @@ Go语言开发的定时任务集中调度和管理系统, 用于替代Linux-cron
 - 消息通知：支持邮件、Slack、Webhook 等多种通知方式
 
 ### 截图
-![流程图](https://raw.githubusercontent.com/ouqiang/gocron/master/assets/screenshot/scheduler.png)
-![任务](https://raw.githubusercontent.com/ouqiang/gocron/master/assets/screenshot/task.png)
-![Slack](https://raw.githubusercontent.com/ouqiang/gocron/master/assets/screenshot/notification.png)
+### 截图
+![安装](https://raw.githubusercontent.com/iranee/qnap-gocron/refs/heads/main/1-install.png)
+![用户](https://raw.githubusercontent.com/iranee/qnap-gocron/refs/heads/main/2-sqlite.png)
+![设置](https://raw.githubusercontent.com/iranee/qnap-gocron/refs/heads/main/3-setting.png)
 
 ## 下载
 [releases](https://github.com/iranee/qnap-gocron/releases)  
