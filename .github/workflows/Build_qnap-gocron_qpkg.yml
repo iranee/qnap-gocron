@@ -309,19 +309,12 @@ jobs:
 
             ${{ steps.notes.outputs.notes }}
 
-            ## 安装方法
-
-            1. 下载对应架构的 `.qpkg` 文件
-            2. 登录 QNAP 管理界面 → App Center
-            3. 点击右上角齿轮图标 → **手动安装**
-            4. 选择下载的 `.qpkg` 文件进行安装
-
             ## 支持架构
 
             | 文件 | 适用设备 |
             |------|--------|
-            | `*_x86_64.qpkg` | Intel/AMD 64位 |
-            | `*_arm_64.qpkg` | ARM 64位（aarch64） |
+            | `x86_64` | Intel/AMD 64位 |
+            | `*arm_64` | ARM 64位（aarch64） |
 
             ## 构建信息
 
