@@ -64,3 +64,11 @@ Go语言开发的定时任务集中调度和管理系统, 用于替代Linux-cron
 - 建议使用Sqlite3数据库，首次全新安装，需要设置用户名密码
 - 如果要用MySQL数据库，安装前去威联通的管理页面打开MariaDB5服务(原MySQL服务)，位置在：控制台→应用程序→MariaDB
 - 如果要用MySQL数据库，在MariaDB里设置用户密码，配置页面需要填入。
+- 
+## 交流群
+* 群名称： openlist for QNAP QQ群号： 529743094
+* 可以交流各种QNAP技术、技巧、问题。
+<img src="https://raw.githubusercontent.com/iranee/qnap-openlist-webdav/main/qq-group.jpg" alt="QQ GRPUP" width="500"/>
+
+## Starchart
+![Star History Chart](https://api.star-history.com/svg?repos=iranee/qnap-gocron&type=Date)
