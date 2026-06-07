@@ -1,15 +1,32 @@
-## QNAP gocron 定时任务管理系统  
+## QNAP Gocron 定时任务管理系统  
 [![Release](https://img.shields.io/github/v/release/iranee/qnap-gocron?label=Releases&color=2)](https://github.com/iranee/qnap-gocron)
 
 
 Go语言开发的定时任务集中调度和管理系统, 用于替代Linux-crontab
 
-* 感谢原项目:https://github.com/gocronx-team/gocron
+* 感谢开源项目:https://github.com/gocronx-team/gocron
+
 
 ### 全新版本 v1.6.1
 - 改用全新项目，从老版本的gocron克隆过来进行了全面升级
 - 新版本在旧版本的基础上做了优化，增加了更多功能。
 - 不兼容旧版本数据库
+
+#### 📊[阅读使用文档](https://gocron-docs.pages.dev/zh/guide/introduction.html)
+
+### 核心特性
+#### ⚡️ 高性能：基于 Go 语言开发，性能卓越，资源占用低
+
+#### 🎯 易于使用：Web 界面管理，简单直观，无需复杂配置
+
+#### 🔐 安全可靠：支持双因素认证（2FA）和 TLS 双向认证
+
+#### 📊 日志管理：完善的任务执行日志，支持自动清理和归档
+
+#### 🌐 分布式：支持多节点部署，任务分发执行
+
+#### 🔔 通知提醒：任务执行失败时支持多种方式通知
+
 ### ✨ 功能特性
 - Web 界面管理：直观的定时任务管理界面
 - 秒级定时：支持 Crontab 时间表达式，精确到秒
